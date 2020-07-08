@@ -83,6 +83,7 @@ enum
   PROP_INCLUDE_ALL_MONITORS,
   PROP_FLAT_BUTTONS,
   PROP_SWITCH_WORKSPACE_ON_UNMINIMIZE,
+  PROP_SHOW_COUNT_INDICATOR,
   PROP_SHOW_LABELS,
   PROP_SHOW_ONLY_MINIMIZED,
   PROP_SHOW_WIREFRAMES,
@@ -122,6 +123,9 @@ struct _XfceTasklist
 
   /* classgroups of all the windows in the taskbar */
   GHashTable           *class_groups;
+
+  /* whether we show the count indicator for window groups */
+  guint                 show_count_indicator : 1;
 
   /* normal or iconbox style */
   guint                 show_labels : 1;
@@ -360,6 +364,8 @@ static void               xfce_tasklist_set_include_all_monitors         (XfceTa
                                                                           gboolean              all_monitors);
 static void               xfce_tasklist_set_button_relief                (XfceTasklist         *tasklist,
                                                                           GtkReliefStyle        button_relief);
+static void               xfce_tasklist_set_show_count_indicator         (XfceTasklist         *tasklist,
+                                                                          gboolean              show_labels);
 static void               xfce_tasklist_set_show_labels                  (XfceTasklist         *tasklist,
                                                                           gboolean              show_labels);
 static void               xfce_tasklist_set_show_only_minimized          (XfceTasklist         *tasklist,
@@ -436,6 +442,13 @@ xfce_tasklist_class_init (XfceTasklistClass *klass)
   g_object_class_install_property (gobject_class,
                                    PROP_SWITCH_WORKSPACE_ON_UNMINIMIZE,
                                    g_param_spec_boolean ("switch-workspace-on-unminimize",
+                                                         NULL, NULL,
+                                                         TRUE,
+                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class,
+                                   PROP_SHOW_COUNT_INDICATOR,
+                                   g_param_spec_boolean ("show-count-indicator",
                                                          NULL, NULL,
                                                          TRUE,
                                                          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
@@ -698,6 +711,10 @@ xfce_tasklist_get_property (GObject    *object,
       g_value_set_boolean (value, tasklist->switch_workspace);
       break;
 
+    case PROP_SHOW_COUNT_INDICATOR:
+      g_value_set_boolean (value, tasklist->show_count_indicator);
+      break;
+
     case PROP_SHOW_LABELS:
       g_value_set_boolean (value, tasklist->show_labels);
       break;
@@ -773,6 +790,10 @@ xfce_tasklist_set_property (GObject      *object,
       xfce_tasklist_set_button_relief (tasklist,
                                        g_value_get_boolean (value) ?
                                          GTK_RELIEF_NONE : GTK_RELIEF_NORMAL);
+      break;
+
+    case PROP_SHOW_COUNT_INDICATOR:
+      xfce_tasklist_set_show_count_indicator (tasklist, g_value_get_boolean (value));
       break;
 
     case PROP_SHOW_LABELS:
@@ -3738,7 +3759,7 @@ xfce_tasklist_group_button_button_draw (GtkWidget         *widget,
                                         cairo_t           *cr,
                                         XfceTasklistChild *group_child)
 {
-  if (group_child->n_windows > 1)
+  if (group_child->n_windows > 1 && group_child->tasklist->show_count_indicator)
     {
       GtkStyleContext *context;
       GtkAllocation *allocation = g_new0 (GtkAllocation, 1);
@@ -3902,7 +3923,21 @@ xfce_tasklist_group_button_name_changed (WnckClassGroup    *class_group,
 
   /* create the button label */
   name = wnck_class_group_get_name (group_child->class_group);
-  gtk_label_set_text (GTK_LABEL (group_child->label), name);
+
+  /* add number of windows to label text if the indicator is disabled */
+  if (!group_child->tasklist->show_count_indicator)
+    {
+      gchar *label;
+      if (!panel_str_is_empty (name))
+        label = g_strdup_printf ("%s (%d)", name, group_child->n_windows);
+      else
+        label = g_strdup_printf ("(%d)", group_child->n_windows);
+
+      gtk_label_set_text (GTK_LABEL (group_child->label), label);
+      g_free (label);
+    }
+  else
+    gtk_label_set_text (GTK_LABEL (group_child->label), name);
 
   /* don't sort if there is no need to update the sorting (ie. only number
    * of windows is changed or button is not inserted in the tasklist yet */
@@ -4254,6 +4289,41 @@ xfce_tasklist_set_button_relief (XfceTasklist   *tasklist,
     }
 }
 
+static void
+xfce_tasklist_set_show_count_indicator (XfceTasklist *tasklist,
+                                        gboolean      show_count_indicator)
+{
+  GList             *li;
+  XfceTasklistChild *child;
+
+  panel_return_if_fail (XFCE_IS_TASKLIST (tasklist));
+
+  show_count_indicator = !!show_count_indicator;
+
+  if (tasklist->show_count_indicator != show_count_indicator)
+    {
+      GHashTableIter iter;
+      XfceTasklistChild *child;
+
+      tasklist->show_count_indicator = show_count_indicator;
+
+      /* don't do anything if tasklist grouping isn't enabled */
+      if (tasklist->grouping == XFCE_TASKLIST_GROUPING_NEVER)
+        return;
+
+      /* iterate through all buttons and redraw indicator */
+      g_hash_table_iter_init (&iter, tasklist->class_groups);
+      while (g_hash_table_iter_next (&iter, NULL, (gpointer *)&child))
+        {
+          if (child == NULL)
+            continue;
+
+          /* redraw this button and update label */
+          gtk_widget_queue_resize (GTK_WIDGET (child->button));
+          xfce_tasklist_group_button_name_changed(NULL, child);
+        }
+    }
+}
 
 
 static void
