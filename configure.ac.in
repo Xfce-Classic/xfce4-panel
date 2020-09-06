@@ -13,7 +13,7 @@ m4_define([libxfce4panel_version_api], [2.0])
 m4_define([xfce4_panel_config_version], [2])
 m4_define([xfce4_panel_version_major], [4])
 m4_define([xfce4_panel_version_minor], [15])
-m4_define([xfce4_panel_version_micro], [3])
+m4_define([xfce4_panel_version_micro], [4])
 m4_define([xfce4_panel_version_nano],  []) dnl leave this empty to have no nano version
 m4_define([xfce4_panel_version_build], [@REVISION@])
 m4_define([xfce4_panel_version_tag], [git])
@@ -140,7 +140,7 @@ fi
 dnl ***********************************
 dnl *** Check for required packages ***
 dnl ***********************************
-XDT_CHECK_PACKAGE([LIBXFCE4UTIL], [libxfce4util-1.0], [4.13.0])
+XDT_CHECK_PACKAGE([LIBXFCE4UTIL], [libxfce4util-1.0], [4.15.2])
 XDT_CHECK_PACKAGE([GARCON], [garcon-1], [0.5.0])
 XDT_CHECK_PACKAGE([GARCON_GTK3], [garcon-gtk3-1], [0.5.0])
 XDT_CHECK_PACKAGE([LIBXFCE4UI], [libxfce4ui-2], [4.15.1])
@@ -153,6 +153,7 @@ PKG_CHECK_MODULES([GIO_UNIX], [gio-unix-2.0 >= 2.42.0])
 XDT_CHECK_PACKAGE([GMODULE], [gmodule-2.0], [2.42.0])
 XDT_CHECK_PACKAGE([CAIRO], [cairo], [1.0.0])
 XDT_CHECK_PACKAGE([LIBWNCK], [libwnck-3.0], [3.0])
+XDT_CHECK_PACKAGE([DBUSMENU], [dbusmenu-gtk3-0.4], [16.04.0])
 
 dnl **********************************
 dnl *** Optional GIO UNIX features ***
@@ -246,7 +247,6 @@ docs/references/Makefile
 docs/references/version.xml
 icons/Makefile
 icons/16x16/Makefile
-icons/22x22/Makefile
 icons/24x24/Makefile
 icons/32x32/Makefile
 icons/48x48/Makefile
